@@ -2,18 +2,18 @@
 You can compile this code using gcc and run it with two arguments: port number for TCP and port number for UDP. For example:
 gcc network.c -o network
 ./network 1234 5678
-This will listen to incoming connections on port number `1234` for TCP and `5678` for UDP. If you do not provide two arguments when running this program it will print a usage message
+This will listen to incoming connections on port number `1234` for TCP and `5678` for UDP.
+If you do not provide two arguments when running this program it will print a usage message
 add  help if the user does not add the required variables.
-*/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-/* this is for UNIX systems
+this is for UNIX systems
 #include <sys/socket.h>
 #include <arpa/inet.h>
 socklen_t type is defined WS2tcpip.h
 */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <winsock2.h>
 #include <WS2tcpip.h>
 #include <unistd.h>
