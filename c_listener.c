@@ -9,8 +9,13 @@ add  help if the user does not add the required variables.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+/* this is for UNIX systems
 #include <sys/socket.h>
 #include <arpa/inet.h>
+socklen_t type is defined WS2tcpip.h
+*/
+#include <winsock2.h>
+#include <WS2tcpip.h>
 #include <unistd.h>
 
 #define BUF_SIZE 1024
