@@ -91,37 +91,6 @@ int main(int argc, char *argv[]) {
             printf("Could not receive data from TCP client");
             continue;
         }
-
-        printf("Received data from TCP client: %s\n", buffer);
-
-        // Send data back to the client
-        if (send(client_sock, buffer, strlen(buffer), 0) == -1) {
-            printf("Could not send data to TCP client");
-            continue;
-        }
-
-        close(client_sock);
-        
-        // Receive data from the client on the UDP socket
-        memset(buffer, 0, BUF_SIZE);
-        recv_len = recvfrom(udp_sock, buffer, BUF_SIZE - 1, 0,
-                            (struct sockaddr *) &client,
-                            &client_len);
-        if (recv_len == -1) {
-            printf("Could not receive data from UDP client");
-            continue;
-        }
-
-        printf("Received data from UDP client: %s\n", buffer);
-
-        // Send data back to the client on the UDP socket
-        if (sendto(udp_sock, buffer, strlen(buffer), 0,
-                   (struct sockaddr *) &client,
-                   sizeof(client)) == -1) {
-            printf("Could not send data to UDP client");
-            continue;
-        }
-        
     }
 
     close(tcp_sock);
