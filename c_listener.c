@@ -6,7 +6,7 @@ This will listen to incoming connections on port number `1234` for TCP and `5678
 If you do not provide two arguments when running this program it will print a usage message
 add  help if the user does not add the required variables.
 
-this is for UNIX systems
+these headers are for UNIX systems
 #include <sys/socket.h>
 #include <arpa/inet.h>
 socklen_t type is defined WS2tcpip.h
@@ -19,6 +19,8 @@ socklen_t type is defined WS2tcpip.h
 #include <unistd.h>
 
 #define BUF_SIZE 1024
+#define MAX_RECV_LEN 1023 //need to leave room for the terminating null character when storing text in C and avoid buffer overflows
+#define LISTEN_BACKLOG 5
 
 int main(int argc, char *argv[]) {
     int tcp_sock, udp_sock;
@@ -27,12 +29,16 @@ int main(int argc, char *argv[]) {
     int tcp_port = 0;
     int udp_port = 0;
 
+    // Check the number of arguments
     if (argc != 3) {
         printf("Usage: %s <tcp port> <udp port>\n", argv[0]);
         return 1;
     }
 
+    // Get the TCP port
     tcp_port = atoi(argv[1]);
+
+    // Get the UDP port
     udp_port = atoi(argv[2]);
 
     // Create TCP socket
@@ -71,7 +77,16 @@ int main(int argc, char *argv[]) {
     }
 
     // Listen for incoming connections on the TCP socket
-    listen(tcp_sock, 5);
+    if (listen(tcp_sock, LISTEN_BACKLOG) == -1) {
+        printf("Could not listen on TCP socket");
+        return 1;
+    }
+
+    // Print help message if no arguments are provided
+    if (argc == 1) {
+        printf("Usage: %s <tcp port> <udp port>\n", argv[0]);
+        return 0;
+    }
 
     while (1) {
         struct sockaddr_in client;
@@ -84,9 +99,9 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        // Receive data from the client
+        // Receive data from the client on the TCP socket
         memset(buffer, 0, BUF_SIZE);
-        int recv_len = recv(client_sock, buffer, BUF_SIZE - 1, 0);
+        int recv_len = recv(client_sock, buffer, MAX_RECV_LEN, 0);
         if (recv_len == -1) {
             printf("Could not receive data from TCP client");
             continue;
