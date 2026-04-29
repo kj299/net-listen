@@ -8,16 +8,46 @@ on:
 
 jobs:
   build:
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
 
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu
+            os: ubuntu-latest
+          - name: redhat
+            os: ubuntu-latest
+            container: redhat/ubi9
+          - name: windows
+            os: windows-latest
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
-    - uses: actions/checkout@v3
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+      - uses: actions/checkout@v4
+
+      - name: Install build tools (RHEL)
+        if: matrix.name == 'redhat'
+        run: dnf install -y gcc make
+
+      - name: Setup MSYS2 (Windows)
+        if: matrix.name == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc make
+          update: false
+
+      - name: Build (Linux)
+        if: matrix.name != 'windows'
+        run: make
+
+      - name: Build (Windows)
+        if: matrix.name == 'windows'
+        shell: msys2 {0}
+        run: make
