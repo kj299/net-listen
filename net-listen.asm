@@ -4,6 +4,8 @@
 ; ld -s -o program program.o
 ; This will create an executable file called program from the assembly code in program.asm. You can then run the program by typing:
 ; ./program
+; don't code asm at all this is probably pretty crappy code
+
 
 section .data
     BUF_SIZE equ 1024
