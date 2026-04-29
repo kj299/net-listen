@@ -6,6 +6,8 @@ This will listen to incoming connections on port number `1234` for TCP and `5678
 If you do not provide two arguments when running this program it will print a usage message
 add  help if the user does not add the required variables.
 
+really just trying to remember how to do some of this stuff
+
 these headers are for UNIX systems
 #include <sys/socket.h>
 #include <arpa/inet.h>
