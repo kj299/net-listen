@@ -155,6 +155,7 @@ static void handle_tcp_client(sock_t listener) {
         int n = recv(c, buf, (int)sizeof(buf) - 1, 0);
         if (n == 0) {
             printf("[tcp] %s closed\n", who);
+            fflush(stdout);
             break;
         }
         if (n == SOCK_ERR) {
@@ -248,6 +249,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("shutting down\n");
+    fflush(stdout);
     close_sock(tcp_sock);
     close_sock(udp_sock);
 #if defined(_WIN32) || defined(_WIN64)

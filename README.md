@@ -90,10 +90,13 @@ console handler — Ctrl+C terminates it via the default Win32 behaviour.
 each works as expected: argument validation, TCP and UDP receipt, `select()`
 multiplexing in a single instance, graceful shutdown, and the assembly
 listener's TCP echo. It prints `[PASS]`/`[FAIL]`/`[WARN]` per check and exits
-with the number of failures (0 = all good).
+with the number of failures (0 = all good). Every run also writes the full
+output to `smoketest.log` (override with `-LogFile`) so results can be shared
+without copy-pasting the console.
 
 ```powershell
 .\smoketest.ps1 -Build                 # build, then run every check
 .\smoketest.ps1                        # run against already-built binaries
 .\smoketest.ps1 -TcpPort 9001 -UdpPort 9002 -SkipAsm
+.\smoketest.ps1 -LogFile run1.log      # write the transcript elsewhere
 ```
