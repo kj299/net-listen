@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>   /* sig_atomic_t — standard C, available on every target */
 
 /* ---- platform shim ---------------------------------------------------- */
 #if defined(_WIN32) || defined(_WIN64)
@@ -42,7 +43,6 @@
   #include <arpa/inet.h>
   #include <unistd.h>
   #include <errno.h>
-  #include <signal.h>
   typedef int sock_t;
   #define BAD_SOCKET    (-1)
   #define SOCK_ERR      (-1)
