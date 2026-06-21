@@ -1,0 +1,51 @@
+name: Release
+
+# Cut a release by pushing a version tag, e.g.:
+#   git tag v1.0.0 && git push origin v1.0.0
+# This builds the binaries on Windows and Linux and publishes them on a
+# GitHub Release for that tag.
+
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install NASM
+        uses: ilammy/setup-nasm@v1
+
+      - name: Build
+        shell: cmd
+        run: mingw32-make
+
+      - name: Package
+        shell: pwsh
+        run: Compress-Archive -Path c_listener.exe, asm_listener.exe -DestinationPath net-listen-windows-x64.zip
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: net-listen-windows-x64.zip
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: make
+
+      - name: Package
+        run: tar -czf net-listen-linux-x64.tar.gz c_listener
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: net-listen-linux-x64.tar.gz

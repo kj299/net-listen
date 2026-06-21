@@ -102,3 +102,18 @@ without copy-pasting the console.
 .\smoketest.ps1 -TcpPort 9001 -UdpPort 9002 -SkipAsm
 .\smoketest.ps1 -LogFile run1.log      # write the transcript elsewhere
 ```
+
+## Releases
+
+Pre-built binaries are published on the
+[Releases](https://github.com/kj299/net-listen/releases) page. To cut a new
+one, push a version tag — the `Release` workflow builds on both platforms and
+attaches the artifacts:
+
+```
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This produces `net-listen-windows-x64.zip` (`c_listener.exe` +
+`asm_listener.exe`) and `net-listen-linux-x64.tar.gz` (`c_listener`).
