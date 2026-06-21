@@ -1,30 +1,55 @@
 # Detects the host OS (and Linux distribution) at make-time and configures
-# the build accordingly. Supports Windows (MinGW/MSYS2), Ubuntu, and RHEL.
+# the build accordingly.
+#
+#   Linux (Ubuntu, Red Hat):  builds c_listener      (gcc)
+#   Windows (MinGW-w64):       builds c_listener.exe  (gcc)  and,
+#                              if NASM is present,    asm_listener.exe
+#
+# The x64 assembly listener (net-listen.asm) is Windows/Winsock-only, so it
+# is built only on Windows. The C listener is portable and built everywhere.
+#
+#   make            # build everything appropriate for this OS
+#   make c          # build only the C listener
+#   make asm        # build only the assembly listener (Windows only)
+#   make info       # print the detected build configuration
+#   make clean
 
 CC      ?= gcc
-CFLAGS  ?= -Wall -O2
-SRC     := c_listener.c
+NASM    ?= nasm
+CFLAGS  ?= -O2 -Wall -Wextra
+C_SRC   := c_listener.c
+ASM_SRC := net-listen.asm
+ASM_OBJ := net-listen.obj
 
 ifeq ($(OS),Windows_NT)
     PLATFORM := windows
-    BIN      := c_listener.exe
+    C_BIN    := c_listener.exe
+    ASM_BIN  := asm_listener.exe
     LDLIBS   := -lws2_32
-    RM       := del /Q /F
+    RM       := del /q
+    NULDEV   := NUL
+    # Build the asm listener too, but only if NASM is on PATH.
+    HAVE_NASM := $(shell where $(NASM) >NUL 2>&1 && echo yes)
+    ifeq ($(HAVE_NASM),yes)
+        TARGETS := $(C_BIN) $(ASM_BIN)
+    else
+        TARGETS := $(C_BIN)
+    endif
 else
     UNAME_S := $(shell uname -s)
     ifeq ($(UNAME_S),Linux)
         PLATFORM := linux
-        BIN      := c_listener
+        C_BIN    := c_listener
         LDLIBS   :=
         RM       := rm -f
+        NULDEV   := /dev/null
+        TARGETS  := $(C_BIN)
         ifneq ($(wildcard /etc/os-release),)
             DISTRO_ID      := $(shell . /etc/os-release && echo $$ID)
             DISTRO_VERSION := $(shell . /etc/os-release && echo $$VERSION_ID)
         endif
         SUPPORTED_DISTROS := ubuntu debian rhel centos fedora rocky almalinux
-        ifneq ($(filter $(DISTRO_ID),$(SUPPORTED_DISTROS)),)
-            DISTRO_OK := yes
-        else
+        ifeq ($(filter $(DISTRO_ID),$(SUPPORTED_DISTROS)),)
             $(warning Untested Linux distribution '$(DISTRO_ID)'; build will proceed but is not verified.)
         endif
     else
@@ -32,9 +57,11 @@ else
     endif
 endif
 
-.PHONY: all info clean
+.PHONY: all c asm info clean
 
-all: info $(BIN)
+all: info $(TARGETS)
+
+c: $(C_BIN)
 
 info:
 	@echo "=== net-listen build ==="
@@ -44,12 +71,24 @@ ifeq ($(PLATFORM),linux)
 endif
 	@echo "Compiler : $(CC)"
 	@echo "Flags    : $(CFLAGS)"
-	@echo "Libs     : $(LDLIBS)"
-	@echo "Output   : $(BIN)"
+	@echo "Targets  : $(TARGETS)"
 	@echo "========================"
 
-$(BIN): $(SRC)
-	$(CC) $(CFLAGS) $(SRC) -o $(BIN) $(LDLIBS)
+$(C_BIN): $(C_SRC)
+	$(CC) $(CFLAGS) $(C_SRC) -o $(C_BIN) $(LDLIBS)
+
+ifeq ($(OS),Windows_NT)
+asm: $(ASM_BIN)
+
+$(ASM_OBJ): $(ASM_SRC)
+	$(NASM) -f win64 $(ASM_SRC) -o $(ASM_OBJ)
+
+$(ASM_BIN): $(ASM_OBJ)
+	$(CC) -nostartfiles -Wl,-e,start $(ASM_OBJ) -o $(ASM_BIN) -lws2_32 -lkernel32
+else
+asm:
+	@echo "asm_listener is Windows-only (net-listen.asm uses Win64 + Winsock); skipping on $(PLATFORM)."
+endif
 
 clean:
-	-$(RM) c_listener c_listener.exe
+	-$(RM) c_listener c_listener.exe asm_listener.exe $(ASM_OBJ) 2> $(NULDEV)
