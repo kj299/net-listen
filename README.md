@@ -83,3 +83,17 @@ $u=New-Object Net.Sockets.UdpClient; `
 
 Press Ctrl+C to stop the C listener cleanly. The assembly listener has no
 console handler — Ctrl+C terminates it via the default Win32 behaviour.
+
+## Smoke test (Windows)
+
+`smoketest.ps1` iterates across the tool's capabilities and validates that
+each works as expected: argument validation, TCP and UDP receipt, `select()`
+multiplexing in a single instance, graceful shutdown, and the assembly
+listener's TCP echo. It prints `[PASS]`/`[FAIL]`/`[WARN]` per check and exits
+with the number of failures (0 = all good).
+
+```powershell
+.\smoketest.ps1 -Build                 # build, then run every check
+.\smoketest.ps1                        # run against already-built binaries
+.\smoketest.ps1 -TcpPort 9001 -UdpPort 9002 -SkipAsm
+```
