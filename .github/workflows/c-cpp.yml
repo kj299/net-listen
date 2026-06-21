@@ -61,17 +61,14 @@ jobs:
 
       - name: Smoke test
         shell: pwsh
-        run: |
-          $p = Start-Process -FilePath ".\c_listener.exe" `
-                             -ArgumentList '54321','54322' `
-                             -PassThru -WindowStyle Hidden `
-                             -RedirectStandardOutput 'c_out.txt' `
-                             -RedirectStandardError  'c_err.txt'
-          Start-Sleep -Milliseconds 800
-          $tcp = Get-NetTCPConnection -LocalPort 54321 -State Listen -ErrorAction SilentlyContinue
-          if (-not $tcp) { Stop-Process -Id $p.Id -Force; throw "c_listener did not bind TCP/54321" }
-          Stop-Process -Id $p.Id -Force
-          Get-Content c_out.txt
+        run: .\smoketest.ps1
+
+      - name: Upload smoke-test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoketest-log
+          path: smoketest.log
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
