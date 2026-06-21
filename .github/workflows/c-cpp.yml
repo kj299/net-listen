@@ -7,27 +7,17 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
-    name: build (${{ matrix.name }})
-    runs-on: ${{ matrix.os }}
+  linux:
+    name: linux (${{ matrix.name }})
+    runs-on: ubuntu-latest
     container: ${{ matrix.container }}
-
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: ubuntu
-            os: ubuntu-latest
           - name: redhat
-            os: ubuntu-latest
             container: redhat/ubi9
-          - name: windows
-            os: windows-latest
-
-    defaults:
-      run:
-        shell: bash
-
     steps:
       - uses: actions/checkout@v4
 
@@ -35,19 +25,58 @@ jobs:
         if: matrix.name == 'redhat'
         run: dnf install -y gcc make
 
-      - name: Setup MSYS2 (Windows)
-        if: matrix.name == 'windows'
-        uses: msys2/setup-msys2@v2
+      - name: Build
+        run: make
+
+      - name: Smoke test
+        run: |
+          ./c_listener 54321 54322 &
+          pid=$!
+          sleep 1
+          if ! kill -0 "$pid" 2>/dev/null; then
+            echo "c_listener exited prematurely"; exit 1
+          fi
+          kill -INT "$pid" || true
+          wait "$pid" 2>/dev/null || true
+          echo "c_listener bound and ran"
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install NASM
+        uses: ilammy/setup-nasm@v1
+
+      - name: Show toolchain versions
+        shell: bash
+        run: |
+          gcc --version | head -n 1
+          nasm -v
+          mingw32-make --version | head -n 1
+
+      - name: Build (mingw32-make)
+        shell: cmd
+        run: mingw32-make
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath ".\c_listener.exe" `
+                             -ArgumentList '54321','54322' `
+                             -PassThru -WindowStyle Hidden `
+                             -RedirectStandardOutput 'c_out.txt' `
+                             -RedirectStandardError  'c_err.txt'
+          Start-Sleep -Milliseconds 800
+          $tcp = Get-NetTCPConnection -LocalPort 54321 -State Listen -ErrorAction SilentlyContinue
+          if (-not $tcp) { Stop-Process -Id $p.Id -Force; throw "c_listener did not bind TCP/54321" }
+          Stop-Process -Id $p.Id -Force
+          Get-Content c_out.txt
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
         with:
-          msystem: MINGW64
-          install: mingw-w64-x86_64-gcc make
-          update: false
-
-      - name: Build (Linux)
-        if: matrix.name != 'windows'
-        run: make
-
-      - name: Build (Windows)
-        if: matrix.name == 'windows'
-        shell: msys2 {0}
-        run: make
+          name: net-listen-windows-x64
+          path: |
+            c_listener.exe
+            asm_listener.exe
