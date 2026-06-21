@@ -14,7 +14,13 @@
 #   make info       # print the detected build configuration
 #   make clean
 
-CC      ?= gcc
+# GNU Make pre-defines CC as `cc` (origin "default"), and `?=` will NOT
+# override that built-in default. Since `cc` does not exist on some
+# toolchains (notably MinGW-w64, which ships only `gcc`), force gcc unless
+# CC was set explicitly via the environment or command line.
+ifeq ($(origin CC),default)
+    CC := gcc
+endif
 NASM    ?= nasm
 CFLAGS  ?= -O2 -Wall -Wextra
 C_SRC   := c_listener.c
@@ -64,15 +70,15 @@ all: info $(TARGETS)
 c: $(C_BIN)
 
 info:
-	@echo "=== net-listen build ==="
-	@echo "Platform : $(PLATFORM)"
+	@echo === net-listen build ===
+	@echo Platform : $(PLATFORM)
 ifeq ($(PLATFORM),linux)
-	@echo "Distro   : $(DISTRO_ID) $(DISTRO_VERSION)"
+	@echo Distro   : $(DISTRO_ID) $(DISTRO_VERSION)
 endif
-	@echo "Compiler : $(CC)"
-	@echo "Flags    : $(CFLAGS)"
-	@echo "Targets  : $(TARGETS)"
-	@echo "========================"
+	@echo Compiler : $(CC)
+	@echo Flags    : $(CFLAGS)
+	@echo Targets  : $(TARGETS)
+	@echo ========================
 
 $(C_BIN): $(C_SRC)
 	$(CC) $(CFLAGS) $(C_SRC) -o $(C_BIN) $(LDLIBS)

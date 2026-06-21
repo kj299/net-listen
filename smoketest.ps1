@@ -28,6 +28,11 @@
 .PARAMETER SkipAsm
     Skip the asm_listener.exe checks.
 
+.PARAMETER LogFile
+    Path of the transcript log to write (default: smoketest.log next to this
+    script). The full console output is captured there each run so it can be
+    shared without copy-pasting.
+
 .EXAMPLE
     .\smoketest.ps1 -Build
 
@@ -39,7 +44,8 @@ param(
     [ValidateRange(1, 65535)] [int]$TcpPort = 54321,
     [ValidateRange(1, 65535)] [int]$UdpPort = 54322,
     [switch]$Build,
-    [switch]$SkipAsm
+    [switch]$SkipAsm,
+    [string]$LogFile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -125,6 +131,37 @@ function Test-TcpPortFree([int]$Port) {
     -not (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
 
+# ---- logging -----------------------------------------------------------
+# Capture the whole run (including the build step and any errors) to a file
+# so results can be shared without copy-pasting the console.
+if (-not $LogFile) { $LogFile = Join-Path $PSScriptRoot 'smoketest.log' }
+try { Stop-Transcript | Out-Null } catch { }   # clear any stale transcript
+$script:Transcribing = $false
+try {
+    Start-Transcript -Path $LogFile -Force | Out-Null
+    $script:Transcribing = $true
+} catch {
+    Write-Host "warning: could not start transcript ($_)" -ForegroundColor Yellow
+}
+
+# Print the summary, stop the transcript, and exit with the given code. All
+# exits go through here so the log is always closed cleanly.
+function Finish([int]$Code) {
+    Write-Host ""
+    Write-Host ("=" * 40)
+    Write-Host ("Result: {0} passed, {1} failed, {2} warnings" -f $script:Pass, $script:Fail, $script:Warn) `
+        -ForegroundColor $(if ($script:Fail) { 'Red' } else { 'Green' })
+    if ($script:Transcribing) {
+        try { Stop-Transcript | Out-Null } catch { }
+        $script:Transcribing = $false
+    }
+    Write-Host "Full log written to: $LogFile" -ForegroundColor White
+    exit $Code
+}
+
+# Any unhandled terminating error still closes the log and exits non-zero.
+trap { Write-Host "UNEXPECTED ERROR: $($_ | Out-String)" -ForegroundColor Red; Finish 1 }
+
 # ========================================================================
 Write-Host "net-listen smoke test" -ForegroundColor White
 Write-Host "tcp/$TcpPort  udp/$UdpPort  (cwd: $PSScriptRoot)"
@@ -132,7 +169,7 @@ Write-Host "tcp/$TcpPort  udp/$UdpPort  (cwd: $PSScriptRoot)"
 if ($Build) {
     Section "Build"
     & mingw32-make 2>&1 | Write-Host
-    if ($LASTEXITCODE -ne 0) { Fail "mingw32-make"; exit 1 }
+    if ($LASTEXITCODE -ne 0) { Fail "mingw32-make"; Finish 1 }
     Pass "mingw32-make"
 }
 
@@ -140,11 +177,11 @@ $cExe   = Join-Path $PSScriptRoot 'c_listener.exe'
 $asmExe = Join-Path $PSScriptRoot 'asm_listener.exe'
 if (-not (Test-Path -LiteralPath $cExe)) {
     Write-Host "c_listener.exe not found - build first (e.g. .\smoketest.ps1 -Build)" -ForegroundColor Red
-    exit 1
+    Finish 1
 }
 if (-not (Test-TcpPortFree $TcpPort)) {
     Write-Host "TCP/$TcpPort is already in use - choose another with -TcpPort" -ForegroundColor Red
-    exit 1
+    Finish 1
 }
 
 # ---- 1. argument validation -------------------------------------------
@@ -262,8 +299,4 @@ if (-not $SkipAsm) {
 }
 
 # ---- summary -----------------------------------------------------------
-Write-Host ""
-Write-Host ("=" * 40)
-Write-Host ("Result: {0} passed, {1} failed, {2} warnings" -f $script:Pass, $script:Fail, $script:Warn) `
-    -ForegroundColor $(if ($script:Fail) { 'Red' } else { 'Green' })
-exit $script:Fail
+Finish $script:Fail
