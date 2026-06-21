@@ -2,8 +2,11 @@
  * net-listen (C)
  *
  * Listens on a TCP and a UDP port simultaneously and prints every byte it
- * receives, tagged with the peer that sent it. Both sockets share one event
- * loop via select(), so neither protocol is starved while the other is idle.
+ * receives, tagged with the peer that sent it. A single select() event loop
+ * drives everything: the UDP socket, the TCP listener, and every connected
+ * TCP client are polled together, and each ready socket is serviced with one
+ * non-blocking read per iteration. As a result multiple TCP clients are
+ * handled concurrently and UDP is never starved while a TCP client is busy.
  *
  * Portable across Linux (Ubuntu, Red Hat) and Windows: the platform-specific
  * socket details are isolated in the shim block below, and the rest of the
@@ -53,6 +56,10 @@
 #define BUF_SIZE       1024
 #define LISTEN_BACKLOG 16
 
+/* Sockets handed to select() must fit in an fd_set. Reserve a few slots for
+ * the listener, the UDP socket and headroom, and cap clients at the rest. */
+#define MAX_CLIENTS    (FD_SETSIZE - 4)
+
 static volatile sig_atomic_t g_stop = 0;
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -67,6 +74,15 @@ static void on_signal(int sig) {
     g_stop = 1;
 }
 #endif
+
+/* A connected TCP client and the formatted "ip:port" we print it as. */
+struct client {
+    sock_t sock;
+    char   who[64];
+};
+
+static struct client g_clients[MAX_CLIENTS];
+static int           g_nclients = 0;
 
 /* Report the last socket error using the platform's native facility. */
 static void log_sock_error(const char *where) {
@@ -136,7 +152,15 @@ static void format_peer(const struct sockaddr_in *peer, char *out, size_t n) {
     snprintf(out, n, "%s:%u", ip, ntohs(peer->sin_port));
 }
 
-static void handle_tcp_client(sock_t listener) {
+/* Close a client and remove it from the table by swapping in the last entry
+ * (order does not matter). Callers iterating the table must go backwards. */
+static void drop_client(int i) {
+    close_sock(g_clients[i].sock);
+    g_clients[i] = g_clients[--g_nclients];
+}
+
+/* Accept one pending connection and add it to the client table. */
+static void accept_client(sock_t listener) {
     struct sockaddr_in peer;
     socklen_t peer_len = sizeof(peer);
     sock_t c = accept(listener, (struct sockaddr *)&peer, &peer_len);
@@ -144,29 +168,36 @@ static void handle_tcp_client(sock_t listener) {
         log_sock_error("accept");
         return;
     }
-
-    char who[64];
-    format_peer(&peer, who, sizeof(who));
-    printf("[tcp] connection from %s\n", who);
-    fflush(stdout);
-
-    char buf[BUF_SIZE];
-    for (;;) {
-        int n = recv(c, buf, (int)sizeof(buf) - 1, 0);
-        if (n == 0) {
-            printf("[tcp] %s closed\n", who);
-            fflush(stdout);
-            break;
-        }
-        if (n == SOCK_ERR) {
-            log_sock_error("recv");
-            break;
-        }
-        buf[n] = '\0';
-        printf("[tcp] %s (%d B): %s\n", who, n, buf);
-        fflush(stdout);
+    if (g_nclients >= MAX_CLIENTS) {
+        fprintf(stderr, "[tcp] client table full, dropping new connection\n");
+        close_sock(c);
+        return;
     }
-    close_sock(c);
+    struct client *cl = &g_clients[g_nclients++];
+    cl->sock = c;
+    format_peer(&peer, cl->who, sizeof(cl->who));
+    printf("[tcp] connection from %s\n", cl->who);
+    fflush(stdout);
+}
+
+/* Service a readable client with a single recv; drop it on close or error. */
+static void service_client(int i) {
+    char buf[BUF_SIZE];
+    int n = recv(g_clients[i].sock, buf, (int)sizeof(buf) - 1, 0);
+    if (n == 0) {
+        printf("[tcp] %s closed\n", g_clients[i].who);
+        fflush(stdout);
+        drop_client(i);
+        return;
+    }
+    if (n == SOCK_ERR) {
+        log_sock_error("recv");
+        drop_client(i);
+        return;
+    }
+    buf[n] = '\0';
+    printf("[tcp] %s (%d B): %s\n", g_clients[i].who, n, buf);
+    fflush(stdout);
 }
 
 static void handle_udp_datagram(sock_t s) {
@@ -225,15 +256,19 @@ int main(int argc, char *argv[]) {
     printf("listening: tcp/%u udp/%u  (Ctrl+C to stop)\n", tcp_port, udp_port);
     fflush(stdout);
 
-    /* select()'s first argument is ignored on Windows but must be the
-     * highest fd + 1 on POSIX; computing it is harmless on both. */
-    sock_t maxfd = (tcp_sock > udp_sock) ? tcp_sock : udp_sock;
-
     while (!g_stop) {
         fd_set rfds;
         FD_ZERO(&rfds);
         FD_SET(tcp_sock, &rfds);
         FD_SET(udp_sock, &rfds);
+        /* select()'s first argument is ignored on Windows but must be the
+         * highest fd + 1 on POSIX; computing it is harmless on both. */
+        sock_t maxfd = (tcp_sock > udp_sock) ? tcp_sock : udp_sock;
+        for (int i = 0; i < g_nclients; i++) {
+            FD_SET(g_clients[i].sock, &rfds);
+            if (g_clients[i].sock > maxfd) maxfd = g_clients[i].sock;
+        }
+
         struct timeval tv = { 1, 0 };
         int ready = select((int)maxfd + 1, &rfds, NULL, NULL, &tv);
         if (ready == SOCK_ERR) {
@@ -244,12 +279,19 @@ int main(int argc, char *argv[]) {
             break;
         }
         if (ready == 0) continue;
-        if (FD_ISSET(tcp_sock, &rfds)) handle_tcp_client(tcp_sock);
+
+        /* Service existing clients first. Iterate backwards because
+         * drop_client() swap-removes from the end of the table. */
+        for (int i = g_nclients - 1; i >= 0; i--) {
+            if (FD_ISSET(g_clients[i].sock, &rfds)) service_client(i);
+        }
         if (FD_ISSET(udp_sock, &rfds)) handle_udp_datagram(udp_sock);
+        if (FD_ISSET(tcp_sock, &rfds)) accept_client(tcp_sock);
     }
 
     printf("shutting down\n");
     fflush(stdout);
+    for (int i = 0; i < g_nclients; i++) close_sock(g_clients[i].sock);
     close_sock(tcp_sock);
     close_sock(udp_sock);
 #if defined(_WIN32) || defined(_WIN64)

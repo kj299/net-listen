@@ -12,9 +12,11 @@ sockets API.
 
 The C build is the full implementation: argument validation, native error
 reporting (`WSAGetLastError`/`FormatMessage` on Windows, `errno`/`strerror` on
-Linux), `select()`-based multiplexing of the TCP and UDP sockets so neither is
-starved, `SO_REUSEADDR`, and graceful Ctrl+C shutdown. It compiles unchanged on
-Linux and Windows via a small platform shim at the top of the source.
+Linux), and a single `select()` event loop that polls the UDP socket, the TCP
+listener, and every connected TCP client together — so multiple TCP clients are
+served concurrently and UDP is never starved while a client is busy. Plus
+`SO_REUSEADDR` and graceful Ctrl+C shutdown. It compiles unchanged on Linux and
+Windows via a small platform shim at the top of the source.
 
 The assembly build is a deliberately small, **Windows-only** TCP counterpart
 that demonstrates the Microsoft x64 calling convention and direct Winsock import

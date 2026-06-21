@@ -237,6 +237,23 @@ try {
     Check "UDP: shows payload"            ($o -match "\[udp\].*$udpMsg")
     Check "multiplex: TCP+UDP both served by one instance" `
         (($o -match "\[tcp\].*$tcpMsg") -and ($o -match "\[udp\].*$udpMsg"))
+
+    # No starvation / concurrent clients: hold a TCP client open and idle,
+    # then prove UDP and a second TCP client are still served (the old
+    # blocking recv loop would have stalled both until this client closed).
+    $hold = New-Object System.Net.Sockets.TcpClient
+    $hold.Connect('127.0.0.1', $TcpPort)
+    $hs = $hold.GetStream()
+    $hb = [System.Text.Encoding]::ASCII.GetBytes('hold-open')
+    $hs.Write($hb, 0, $hb.Length); $hs.Flush()
+    Start-Sleep -Milliseconds 200
+    Send-Udp $UdpPort 'udp-not-starved'
+    Send-Tcp $TcpPort 'second-client'
+    Start-Sleep -Milliseconds 400
+    $o = Read-Shared $L.Out
+    Check "no starvation: UDP served while a TCP client is held open" ($o -match 'udp-not-starved')
+    Check "concurrent: 2nd TCP client served while 1st is open"       ($o -match 'second-client')
+    $hold.Close()
 }
 finally {
     Stop-Listener $L
