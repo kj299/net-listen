@@ -16,7 +16,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install NASM
         uses: ilammy/setup-nasm@v1
@@ -24,6 +24,12 @@ jobs:
       - name: Build
         shell: cmd
         run: mingw32-make
+
+      # Never publish untested binaries: the release build is independent of
+      # the push CI, so run the full smoke test against these exact exes.
+      - name: Smoke test
+        shell: pwsh
+        run: .\smoketest.ps1
 
       - name: Package
         shell: pwsh
@@ -37,10 +43,22 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Build
         run: make
+
+      - name: Smoke test
+        run: |
+          ./c_listener 54321 54322 &
+          pid=$!
+          sleep 1
+          if ! kill -0 "$pid" 2>/dev/null; then
+            echo "c_listener exited prematurely"; exit 1
+          fi
+          kill -INT "$pid" || true
+          wait "$pid" 2>/dev/null || true
+          echo "c_listener bound and ran"
 
       - name: Package
         run: tar -czf net-listen-linux-x64.tar.gz c_listener

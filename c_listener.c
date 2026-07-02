@@ -56,9 +56,13 @@
 #define BUF_SIZE       1024
 #define LISTEN_BACKLOG 16
 
-/* Sockets handed to select() must fit in an fd_set. Reserve a few slots for
- * the listener, the UDP socket and headroom, and cap clients at the rest. */
-#define MAX_CLIENTS    (FD_SETSIZE - 4)
+/* Sockets handed to select() must fit in an fd_set, but the limit means
+ * different things per platform: a Windows fd_set holds up to FD_SETSIZE
+ * sockets regardless of their values, while POSIX FD_SET() is undefined for
+ * any descriptor NUMBER >= FD_SETSIZE. Cap clients at half of FD_SETSIZE so
+ * descriptor numbers (clients + listeners + stdio + slack) stay safely in
+ * range under either interpretation. */
+#define MAX_CLIENTS    (FD_SETSIZE / 2)
 
 static volatile sig_atomic_t g_stop = 0;
 
@@ -152,6 +156,16 @@ static void format_peer(const struct sockaddr_in *peer, char *out, size_t n) {
     snprintf(out, n, "%s:%u", ip, ntohs(peer->sin_port));
 }
 
+/* Make received bytes safe to print: raw control bytes would let a remote
+ * peer inject terminal escape sequences, and embedded NULs would silently
+ * truncate the line. Every non-printable byte becomes '.'. */
+static void sanitize(char *s, int n) {
+    for (int i = 0; i < n; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (c < 0x20 || c > 0x7E) s[i] = '.';
+    }
+}
+
 /* Close a client and remove it from the table by swapping in the last entry
  * (order does not matter). Callers iterating the table must go backwards. */
 static void drop_client(int i) {
@@ -195,6 +209,7 @@ static void service_client(int i) {
         drop_client(i);
         return;
     }
+    sanitize(buf, n);
     buf[n] = '\0';
     printf("[tcp] %s (%d B): %s\n", g_clients[i].who, n, buf);
     fflush(stdout);
@@ -210,6 +225,7 @@ static void handle_udp_datagram(sock_t s) {
         log_sock_error("recvfrom");
         return;
     }
+    sanitize(buf, n);
     buf[n] = '\0';
     char who[64];
     format_peer(&peer, who, sizeof(who));
