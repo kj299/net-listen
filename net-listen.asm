@@ -32,7 +32,7 @@ bits 64
 
 extern WSAStartup, WSACleanup, socket, bind, listen, accept, recv
 extern closesocket, htons
-extern GetStdHandle, WriteFile, ExitProcess
+extern GetStdHandle, WriteFile, ExitProcess, Sleep
 
 section .data
 banner          db `net-listen (asm): listening on TCP/1234\r\n`
@@ -58,6 +58,7 @@ wsadata         resb 408            ; sizeof(WSADATA) on 64-bit
 sockaddr        resb 16             ; sockaddr_in
 peer            resb 16
 peer_len        resd 1
+written         resd 1              ; WriteFile lpNumberOfBytesWritten
 buffer          resb BUF_SIZE
 hStdOut         resq 1
 listen_s        resq 1
@@ -66,13 +67,15 @@ client_s        resq 1
 section .text
 global start
 
-; PRINT ptr, len — WriteFile(hStdOut, ptr, len, NULL, NULL)
+; PRINT ptr, len — WriteFile(hStdOut, ptr, len, &written, NULL)
+; lpNumberOfBytesWritten must point at real storage: the API contract only
+; allows it to be NULL when lpOverlapped is non-NULL, and ours is NULL.
 ; Caller must already own a 48-byte scratch frame so [RSP+32] is writable.
 %macro PRINT 2
     lea     rdx, [%1]
     mov     r8d, %2
     mov     rcx, [hStdOut]
-    xor     r9, r9
+    lea     r9, [written]
     mov     qword [rsp+32], 0
     call    WriteFile
 %endmacro
@@ -152,6 +155,10 @@ start:
     cmp     rax, -1
     jne     .accept_ok
     PRINT   err_acc, err_acc_len
+    ; Back off before retrying so a persistent accept() failure (e.g.
+    ; resource exhaustion) doesn't spin flooding stdout.
+    mov     ecx, 100
+    call    Sleep
     jmp     .accept_loop
 .accept_ok:
     mov     [client_s], rax
@@ -171,7 +178,7 @@ start:
     mov     r8d, eax
     lea     rdx, [buffer]
     mov     rcx, [hStdOut]
-    xor     r9, r9
+    lea     r9, [written]
     mov     qword [rsp+32], 0
     call    WriteFile
     jmp     .recv_loop

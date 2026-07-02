@@ -70,6 +70,11 @@ c_listener.exe 1234 5678            # TCP/1234 + UDP/5678
 asm_listener.exe                    # TCP/1234 only
 ```
 
+Both listeners bind `0.0.0.0` — **all interfaces**, not just localhost — so
+anything that can reach the machine can connect. Received bytes are printed
+with non-printable characters replaced by `.`, so a remote peer cannot inject
+terminal escape sequences into your console.
+
 Test from another shell:
 
 ```

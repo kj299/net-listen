@@ -135,7 +135,6 @@ function Test-TcpPortFree([int]$Port) {
 # Capture the whole run (including the build step and any errors) to a file
 # so results can be shared without copy-pasting the console.
 if (-not $LogFile) { $LogFile = Join-Path $PSScriptRoot 'smoketest.log' }
-try { Stop-Transcript | Out-Null } catch { }   # clear any stale transcript
 $script:Transcribing = $false
 try {
     Start-Transcript -Path $LogFile -Force | Out-Null
