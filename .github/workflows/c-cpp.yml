@@ -40,6 +40,53 @@ jobs:
           wait "$pid" 2>/dev/null || true
           echo "c_listener bound and ran"
 
+  sanitizers:
+    name: sanitizers (asan+ubsan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build with ASan + UBSan
+        run: |
+          gcc -std=c11 -O1 -g -fsanitize=address,undefined \
+              -fno-omit-frame-pointer -Wall -Wextra -Wpedantic \
+              c_listener.c -o c_listener_asan
+
+      # The smoke test checks behaviour; this checks memory safety on the
+      # paths that handle untrusted network input.
+      - name: Exercise under sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: |
+          ./c_listener_asan 54321 54322 > asan.log 2>&1 &
+          pid=$!
+          sleep 1
+          if ! kill -0 "$pid" 2>/dev/null; then
+            echo "listener exited prematurely"; cat asan.log; exit 1
+          fi
+          python3 tools/exercise.py 54321 54322
+          sleep 0.3
+          kill -INT "$pid" || true
+          wait "$pid" || true
+          cat asan.log
+
+      - name: Fail on sanitizer findings
+        run: |
+          if grep -qE "ERROR: (AddressSanitizer|LeakSanitizer)|runtime error:|SUMMARY: (Address|Undefined)" asan.log; then
+            echo "::error::sanitizer reported findings"
+            grep -nE "ERROR:|runtime error:|SUMMARY:" asan.log
+            exit 1
+          fi
+          echo "no sanitizer findings"
+
+      - name: Upload sanitizer log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitizer-log
+          path: asan.log
+
   windows:
     runs-on: windows-latest
     steps:
