@@ -264,9 +264,9 @@ Section "5. Graceful shutdown on console close"
 # `taskkill` without /F posts a console-close event instead. Windows
 # terminates a process as soon as its handler returns from CTRL_CLOSE_EVENT,
 # so c_listener's handler blocks until main signals it has finished writing
-# "shutting down" and closing sockets. Still reported as a warning rather
-# than a failure: whether taskkill delivers a close event (vs. terminating
-# outright) is not guaranteed across Windows versions.
+# "shutting down" and closing sockets. This is a hard failure, not a warning:
+# the handshake is deterministic by construction and confirmed green on
+# windows-latest, so a regression here should break the build.
 $L = Start-Listener $cExe @("$TcpPort", "$UdpPort")
 try {
     Start-Sleep -Milliseconds 600
@@ -276,9 +276,9 @@ try {
     if ($exited -and $o -match 'shutting down') {
         Pass "close event handled, shut down cleanly"
     } elseif ($exited) {
-        WarnMsg "process exited without logging 'shutting down' (close event likely not delivered - taskkill terminated it outright)"
+        Fail "process exited without logging 'shutting down' (close event not handled cleanly)"
     } else {
-        WarnMsg "process did not exit within 6s of the close event"
+        Fail "process did not exit within 6s of the close event"
     }
 }
 finally {
