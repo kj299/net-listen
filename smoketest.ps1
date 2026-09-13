@@ -9,7 +9,7 @@
       2. TCP listener         - bind, accept, receive, client-close reporting
       3. UDP listener         - bind, receive datagram
       4. select() multiplex   - both protocols served by one running instance
-      5. Graceful shutdown    - Ctrl+C path (best effort on Windows)
+      5. Graceful shutdown    - clean exit on a console-close event
       6. asm_listener.exe      - Windows-only TCP echo (optional)
 
     Each check prints [PASS] / [FAIL] / [WARN]. The script exits with a code
@@ -258,23 +258,27 @@ finally {
     Stop-Listener $L
 }
 
-# ---- 5. graceful shutdown (best effort) -------------------------------
-Section "5. Graceful Ctrl+C shutdown (best effort)"
+# ---- 5. graceful shutdown ---------------------------------------------
+Section "5. Graceful shutdown on console close"
 # A true CTRL_C_EVENT is awkward to deliver to a hidden child on Windows;
-# `taskkill` without /F posts a console-close event that the program's
-# SetConsoleCtrlHandler should catch and turn into a clean "shutting down".
+# `taskkill` without /F posts a console-close event instead. Windows
+# terminates a process as soon as its handler returns from CTRL_CLOSE_EVENT,
+# so c_listener's handler blocks until main signals it has finished writing
+# "shutting down" and closing sockets. Still reported as a warning rather
+# than a failure: whether taskkill delivers a close event (vs. terminating
+# outright) is not guaranteed across Windows versions.
 $L = Start-Listener $cExe @("$TcpPort", "$UdpPort")
 try {
     Start-Sleep -Milliseconds 600
     taskkill /PID $L.Proc.Id 2>&1 | Out-Null
-    $exited = $L.Proc.WaitForExit(5000)
+    $exited = $L.Proc.WaitForExit(6000)
     $o = Read-Shared $L.Out
     if ($exited -and $o -match 'shutting down') {
-        Pass "received close event and shut down cleanly"
+        Pass "close event handled, shut down cleanly"
     } elseif ($exited) {
-        WarnMsg "process exited but did not log 'shutting down' (console-signal timing)"
+        WarnMsg "process exited without logging 'shutting down' (close event likely not delivered - taskkill terminated it outright)"
     } else {
-        WarnMsg "process did not respond to close event in time (Windows signal limitation)"
+        WarnMsg "process did not exit within 6s of the close event"
     }
 }
 finally {

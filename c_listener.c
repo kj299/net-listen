@@ -67,9 +67,29 @@
 static volatile sig_atomic_t g_stop = 0;
 
 #if defined(_WIN32) || defined(_WIN64)
+/* Signalled by main once it has finished its shutdown output and cleanup.
+ * See on_console_event() for why the handler has to wait for it. */
+static HANDLE g_shutdown_done = NULL;
+
 static BOOL WINAPI on_console_event(DWORD event) {
-    (void)event;
     g_stop = 1;
+    switch (event) {
+    case CTRL_CLOSE_EVENT:
+    case CTRL_LOGOFF_EVENT:
+    case CTRL_SHUTDOWN_EVENT:
+        /* For these events Windows terminates the process as soon as this
+         * handler returns, which would kill main mid-cleanup — the reason
+         * "shutting down" used to go missing on a console close. Block
+         * (bounded, well inside the ~5s grace window) until main signals it
+         * has finished. The main loop's select() timeout is 1s, so it
+         * normally signals almost immediately. */
+        if (g_shutdown_done) WaitForSingleObject(g_shutdown_done, 4000);
+        break;
+    default:
+        /* Ctrl+C and Ctrl+Break do not terminate us, so returning straight
+         * away costs nothing and keeps Ctrl+C snappy. */
+        break;
+    }
     return TRUE;
 }
 #else
@@ -253,6 +273,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "WSAStartup failed: %d\n", rc);
         return 1;
     }
+    /* Manual-reset, initially unsignalled: the console handler waits on this
+     * so it must exist before the handler can fire. */
+    g_shutdown_done = CreateEventA(NULL, TRUE, FALSE, NULL);
     SetConsoleCtrlHandler(on_console_event, TRUE);
 #else
     signal(SIGINT, on_signal);
@@ -312,6 +335,9 @@ int main(int argc, char *argv[]) {
     close_sock(udp_sock);
 #if defined(_WIN32) || defined(_WIN64)
     WSACleanup();
+    /* Release the console handler, which may be waiting to let us get this
+     * far before Windows terminates the process. */
+    if (g_shutdown_done) SetEvent(g_shutdown_done);
 #endif
     return 0;
 }
