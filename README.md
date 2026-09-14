@@ -111,14 +111,20 @@ without copy-pasting the console.
 ## Releases
 
 Pre-built binaries are published on the
-[Releases](https://github.com/kj299/net-listen/releases) page. To cut a new
-one, push a version tag — the `Release` workflow builds on both platforms and
-attaches the artifacts:
+[Releases](https://github.com/kj299/net-listen/releases) page, and
+[CHANGELOG.md](CHANGELOG.md) records what changed in each one.
+
+To cut a new release, push a version tag — the `Release` workflow builds and
+smoke-tests on both platforms, then attaches the artifacts:
 
 ```
-git tag v1.0.0
-git push origin v1.0.0
+git tag -a v0.1.3 -m "net-listen v0.1.3"
+git push origin v0.1.3
 ```
+
+The tag must start with `v` (`vMAJOR.MINOR.PATCH`); the workflow triggers on
+`v*` only, so a tag like `0.2` builds and publishes nothing. A failing smoke
+test blocks packaging, so a release cannot ship untested binaries.
 
 This produces `net-listen-windows-x64.zip` (`c_listener.exe` +
 `asm_listener.exe`) and `net-listen-linux-x64.tar.gz` (`c_listener`).
