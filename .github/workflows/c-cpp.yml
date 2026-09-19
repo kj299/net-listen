@@ -1,5 +1,9 @@
 name: C/C++ CI
 
+# Third-party actions are pinned to exact commit SHAs, with the version in a
+# trailing comment. To bump one, resolve the new tag and replace both:
+#   git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag>
+
 on:
   push:
     branches: [ "master" ]
@@ -19,7 +23,7 @@ jobs:
           - name: redhat
             container: redhat/ubi9
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install build tools (RHEL)
         if: matrix.name == 'redhat'
@@ -44,7 +48,7 @@ jobs:
     name: sanitizers (asan+ubsan)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build with ASan + UBSan
         run: |
@@ -82,7 +86,7 @@ jobs:
 
       - name: Upload sanitizer log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sanitizer-log
           path: asan.log
@@ -90,10 +94,10 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install NASM
-        uses: ilammy/setup-nasm@v1
+        uses: ilammy/setup-nasm@e77cc62a22a374a4d0668286007cc3e3b4c17760 # v1.5.2
 
       - name: Show toolchain versions
         shell: bash
@@ -112,13 +116,13 @@ jobs:
 
       - name: Upload smoke-test log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: smoketest-log
           path: smoketest.log
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: net-listen-windows-x64
           path: |
