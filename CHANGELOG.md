@@ -11,7 +11,26 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
 
 ## [Unreleased]
 
-Nothing yet.
+### Security
+
+- **Third-party GitHub Actions are pinned to exact commit SHAs** rather than
+  mutable version tags. A tag can be repointed by whoever controls the action's
+  repository, and the release workflow runs with `contents: write`, so a moved
+  tag could have tampered with published releases. Each pin carries its version
+  as a trailing comment.
+
+### Changed
+
+- Upgraded the pinned actions, three of which were majors behind:
+  `actions/checkout` v5 → v7.0.1, `actions/upload-artifact` v4 → v7.0.1, and
+  `softprops/action-gh-release` v2 → v3.0.3. All three move the action runtime
+  to Node 24. `ilammy/setup-nasm` was already on its latest major and is pinned
+  at v1.5.2.
+
+  Note that `setup-nasm` still runs on Node 20, so GitHub's Node 20 deprecation
+  warning will continue to appear until upstream publishes a Node 24 build — it
+  just no longer also names `upload-artifact`.
+
 
 ## [v0.1.2] — 2026-09-13
 

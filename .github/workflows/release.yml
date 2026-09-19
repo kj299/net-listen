@@ -1,9 +1,13 @@
 name: Release
 
 # Cut a release by pushing a version tag, e.g.:
-#   git tag v1.0.0 && git push origin v1.0.0
-# This builds the binaries on Windows and Linux and publishes them on a
-# GitHub Release for that tag.
+#   git tag -a v0.1.3 -m "net-listen v0.1.3" && git push origin v0.1.3
+# This builds the binaries on Windows and Linux, smoke-tests them, and
+# publishes them on a GitHub Release for that tag.
+#
+# Third-party actions are pinned to exact commit SHAs, with the version in a
+# trailing comment. To bump one, resolve the new tag and replace both:
+#   git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag>
 
 on:
   push:
@@ -16,10 +20,10 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install NASM
-        uses: ilammy/setup-nasm@v1
+        uses: ilammy/setup-nasm@e77cc62a22a374a4d0668286007cc3e3b4c17760 # v1.5.2
 
       - name: Build
         shell: cmd
@@ -36,14 +40,14 @@ jobs:
         run: Compress-Archive -Path c_listener.exe, asm_listener.exe -DestinationPath net-listen-windows-x64.zip
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@e598afbe1493e6b1bafb1f389cabb956eab91231 # v3.0.3
         with:
           files: net-listen-windows-x64.zip
 
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build
         run: make
@@ -64,6 +68,6 @@ jobs:
         run: tar -czf net-listen-linux-x64.tar.gz c_listener
 
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@e598afbe1493e6b1bafb1f389cabb956eab91231 # v3.0.3
         with:
           files: net-listen-linux-x64.tar.gz
