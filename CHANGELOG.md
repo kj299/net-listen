@@ -23,6 +23,11 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
   now part of tagging, in the same way a failing smoke test already blocks
   packaging.
 
+- **CI self-tests the changelog extractor** on Ubuntu and Windows. The release
+  workflow runs only on tags, so the extractor would otherwise first execute
+  during a real release; `tools/test-release-notes.sh` checks every section in
+  the changelog and both rejection paths on every push instead.
+
 ## [v0.2.0] — 2026-09-20
 
 ### Added

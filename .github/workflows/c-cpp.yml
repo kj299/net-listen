@@ -91,6 +91,23 @@ jobs:
           name: sanitizer-log
           path: asan.log
 
+  # The release workflow only runs on tag pushes, so its changelog extractor
+  # would otherwise first execute during an actual release. Exercise it here,
+  # on both platforms, on every push.
+  release-notes:
+    name: release notes (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Self-test the changelog extractor
+        shell: bash
+        run: bash tools/test-release-notes.sh
+
   windows:
     runs-on: windows-latest
     steps:
