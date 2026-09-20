@@ -9,6 +9,17 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
 `Release` workflow only triggers on tags matching `v*`, so a tag without the
 `v` prefix builds nothing and publishes nothing.
 
+## [Unreleased]
+
+### Fixed
+
+- **Build outputs are gitignored.** `.gitignore` covered object files and logs
+  but not the binaries the Makefile actually produces, so `git add -A` after a
+  build staged them. That is how the stale `c_listener.exe` removed in v0.1.0
+  came to be committed and shipped in the first place; nothing prevented a
+  repeat. `*.exe`, `c_listener`, and the sanitizer job's `c_listener_asan` are
+  now ignored.
+
 ## [v0.2.1] — 2026-09-20
 
 The listeners are unchanged from v0.2.0 — no source file moved, so the
