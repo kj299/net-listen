@@ -10,7 +10,8 @@
       3. UDP listener         - bind, receive datagram
       4. select() multiplex   - both protocols served by one running instance
       5. Graceful shutdown    - clean exit on a console-close event
-      6. asm_listener.exe      - Windows-only TCP echo (optional)
+      6. Bind address         - binds the requested address, loopback only
+      7. asm_listener.exe     - Windows-only TCP echo (optional)
 
     Each check prints [PASS] / [FAIL] / [WARN]. The script exits with a code
     equal to the number of failures (0 = all good), so it can gate CI or a
@@ -203,6 +204,16 @@ Check "port 0 rejected -> exit 1"          ($r.Code -eq 1)
 $r = Invoke-Exit @('70000', '5678')
 Check "port > 65535 rejected -> exit 1"    ($r.Code -eq 1)
 
+$r = Invoke-Exit @('54321', '54322', 'not-an-ip')
+Check "bad bind address -> exit 1"         ($r.Code -eq 1)
+Check "bad bind address -> error message"  ($r.Err -match 'invalid bind address')
+
+$r = Invoke-Exit @('54321', '54322', '999.1.1.1')
+Check "out-of-range bind octet rejected"   ($r.Code -eq 1)
+
+$r = Invoke-Exit @('1', '2', '3', '4')
+Check "too many args -> exit 1"            ($r.Code -eq 1)
+
 # ---- 2-4. TCP, UDP and select() multiplexing --------------------------
 Section "2-4. TCP + UDP listeners (select multiplexing)"
 $L = Start-Listener $cExe @("$TcpPort", "$UdpPort")
@@ -285,9 +296,34 @@ finally {
     Stop-Listener $L
 }
 
-# ---- 6. asm_listener.exe ----------------------------------------------
+# ---- 6. configurable bind address -------------------------------------
+Section "6. Bind address"
+$bTcp = $TcpPort + 10
+$bUdp = $UdpPort + 10
+$L = Start-Listener $cExe @("$bTcp", "$bUdp", "127.0.0.1")
+try {
+    Start-Sleep -Milliseconds 700
+    $o = Read-Shared $L.Out
+    Check "banner reports the bind address" ($o -match "on 127\.0\.0\.1")
+
+    # The point of the feature: the socket must be bound to loopback only,
+    # not 0.0.0.0, so nothing off-box can reach it.
+    $conn = Get-NetTCPConnection -LocalPort $bTcp -State Listen -ErrorAction SilentlyContinue
+    Check "TCP bound to 127.0.0.1, not 0.0.0.0" `
+        (($conn) -and ($conn.LocalAddress -contains '127.0.0.1') -and -not ($conn.LocalAddress -contains '0.0.0.0'))
+
+    Send-Tcp $bTcp 'loopback-only'
+    Start-Sleep -Milliseconds 400
+    $o = Read-Shared $L.Out
+    Check "serves a loopback client"        ($o -match 'loopback-only')
+}
+finally {
+    Stop-Listener $L
+}
+
+# ---- 7. asm_listener.exe ----------------------------------------------
 if (-not $SkipAsm) {
-    Section "6. asm_listener.exe (TCP/1234 echo)"
+    Section "7. asm_listener.exe (TCP/1234 echo)"
     if (-not (Test-Path -LiteralPath $asmExe)) {
         WarnMsg "asm_listener.exe not found - skipping (build with NASM, or pass -SkipAsm)"
     } elseif (-not (Test-TcpPortFree 1234)) {
@@ -314,7 +350,7 @@ if (-not $SkipAsm) {
         }
     }
 } else {
-    Section "6. asm_listener.exe"
+    Section "7. asm_listener.exe"
     WarnMsg "skipped (-SkipAsm)"
 }
 

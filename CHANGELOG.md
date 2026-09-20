@@ -11,7 +11,19 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Configurable bind address.** `c_listener` takes an optional third
+  argument, the IPv4 address to bind: `c_listener <tcp-port> <udp-port>
+  [bind-address]`. It defaults to `0.0.0.0`, so existing two-argument
+  invocations are unchanged. Passing `127.0.0.1` restricts the listener to
+  connections originating on the same machine, which previously was not
+  possible — the README could only warn that the tool was reachable from
+  anywhere that could route to the host.
+
+  The address must be an IPv4 literal; hostnames are not resolved. An
+  unparseable address is rejected before any socket is created. The assembly
+  listener is unchanged and still binds all interfaces.
 
 ## [v0.1.3] — 2026-09-19
 

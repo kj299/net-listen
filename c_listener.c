@@ -12,7 +12,11 @@
  * socket details are isolated in the shim block below, and the rest of the
  * program is written against that shim.
  *
- * Usage:   c_listener <tcp-port> <udp-port>
+ * Usage:   c_listener <tcp-port> <udp-port> [bind-address]
+ *
+ * bind-address is an IPv4 literal and defaults to 0.0.0.0 (all interfaces).
+ * Pass 127.0.0.1 to accept only connections originating on this machine.
+ *
  * Stop:    Ctrl+C (graceful shutdown)
  *
  * Build (Linux):   gcc c_listener.c -o c_listener
@@ -136,7 +140,8 @@ static int parse_port(const char *s, unsigned short *out) {
     return 1;
 }
 
-static sock_t make_listener(int type, unsigned short port) {
+static sock_t make_listener(int type, unsigned short port,
+                            struct in_addr bind_addr) {
     int proto = (type == SOCK_STREAM) ? IPPROTO_TCP : IPPROTO_UDP;
     sock_t s = socket(AF_INET, type, proto);
     if (s == BAD_SOCKET) {
@@ -152,9 +157,9 @@ static sock_t make_listener(int type, unsigned short port) {
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
-    addr.sin_family      = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port        = htons(port);
+    addr.sin_family = AF_INET;
+    addr.sin_addr   = bind_addr;
+    addr.sin_port   = htons(port);
 
     if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) == SOCK_ERR) {
         log_sock_error("bind");
@@ -254,9 +259,12 @@ static void handle_udp_datagram(sock_t s) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <tcp-port> <udp-port>\n",
+    if (argc != 3 && argc != 4) {
+        fprintf(stderr, "Usage: %s <tcp-port> <udp-port> [bind-address]\n",
                 argc > 0 ? argv[0] : "c_listener");
+        fprintf(stderr,
+                "  bind-address defaults to 0.0.0.0 (all interfaces).\n"
+                "  Pass 127.0.0.1 to accept only local connections.\n");
         return 1;
     }
     unsigned short tcp_port = 0, udp_port = 0;
@@ -265,6 +273,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "ports must be integers in 1..65535\n");
         return 1;
     }
+    const char *bind_str = (argc == 4) ? argv[3] : "0.0.0.0";
 
 #if defined(_WIN32) || defined(_WIN64)
     WSADATA wsa;
@@ -281,8 +290,21 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, on_signal);
 #endif
 
-    sock_t tcp_sock = make_listener(SOCK_STREAM, tcp_port);
-    sock_t udp_sock = make_listener(SOCK_DGRAM,  udp_port);
+    /* Parsed after WSAStartup: on Windows inet_pton lives in ws2_32 and
+     * needs Winsock initialised first. IPv4 literals only — no DNS. */
+    struct in_addr bind_addr;
+    if (inet_pton(AF_INET, bind_str, &bind_addr) != 1) {
+        fprintf(stderr,
+                "invalid bind address: %s (expected an IPv4 literal, e.g. 127.0.0.1)\n",
+                bind_str);
+#if defined(_WIN32) || defined(_WIN64)
+        WSACleanup();
+#endif
+        return 1;
+    }
+
+    sock_t tcp_sock = make_listener(SOCK_STREAM, tcp_port, bind_addr);
+    sock_t udp_sock = make_listener(SOCK_DGRAM,  udp_port, bind_addr);
     if (tcp_sock == BAD_SOCKET || udp_sock == BAD_SOCKET) {
         if (tcp_sock != BAD_SOCKET) close_sock(tcp_sock);
         if (udp_sock != BAD_SOCKET) close_sock(udp_sock);
@@ -292,7 +314,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    printf("listening: tcp/%u udp/%u  (Ctrl+C to stop)\n", tcp_port, udp_port);
+    printf("listening: tcp/%u udp/%u on %s  (Ctrl+C to stop)\n",
+           tcp_port, udp_port, bind_str);
     fflush(stdout);
 
     while (!g_stop) {

@@ -63,17 +63,24 @@ The C source also compiles with MSVC: `cl c_listener.c ws2_32.lib`.
 
 ```
 # Linux
-./c_listener 1234 5678              # TCP/1234 + UDP/5678
+./c_listener 1234 5678              # TCP/1234 + UDP/5678, all interfaces
+./c_listener 1234 5678 127.0.0.1    # local connections only
 
 # Windows
-c_listener.exe 1234 5678            # TCP/1234 + UDP/5678
-asm_listener.exe                    # TCP/1234 only
+c_listener.exe 1234 5678            # TCP/1234 + UDP/5678, all interfaces
+c_listener.exe 1234 5678 127.0.0.1  # local connections only
+asm_listener.exe                    # TCP/1234 only, all interfaces
 ```
 
-Both listeners bind `0.0.0.0` — **all interfaces**, not just localhost — so
-anything that can reach the machine can connect. Received bytes are printed
-with non-printable characters replaced by `.`, so a remote peer cannot inject
-terminal escape sequences into your console.
+`c_listener` takes an optional third argument: the IPv4 address to bind. It
+defaults to `0.0.0.0` — **all interfaces**, so anything that can reach the
+machine can connect. Pass `127.0.0.1` to accept only connections originating
+on this machine, which is usually what you want when probing locally. The
+address must be an IPv4 literal; hostnames are not resolved. The assembly
+listener has no such option and always binds all interfaces.
+
+Received bytes are printed with non-printable characters replaced by `.`, so a
+remote peer cannot inject terminal escape sequences into your console.
 
 Test from another shell:
 
