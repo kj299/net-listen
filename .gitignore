@@ -4,3 +4,6 @@
 *.ilk
 *.log
 
+# Generated from CHANGELOG.md by tools/release-notes.sh during a release.
+RELEASE_NOTES.md
+
