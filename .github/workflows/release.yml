@@ -22,6 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Before the build, so a tag whose changelog section was never promoted
+      # out of [Unreleased] fails here rather than publishing empty notes.
+      - name: Release notes
+        shell: bash
+        run: bash tools/release-notes.sh "$GITHUB_REF_NAME"
+
       - name: Install NASM
         uses: ilammy/setup-nasm@e77cc62a22a374a4d0668286007cc3e3b4c17760 # v1.5.2
 
@@ -43,11 +49,17 @@ jobs:
         uses: softprops/action-gh-release@e598afbe1493e6b1bafb1f389cabb956eab91231 # v3.0.3
         with:
           files: net-listen-windows-x64.zip
+          body_path: RELEASE_NOTES.md
 
   linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Both jobs write the same notes from the same tag, so whichever reaches
+      # the release first, the body is identical.
+      - name: Release notes
+        run: bash tools/release-notes.sh "$GITHUB_REF_NAME"
 
       - name: Build
         run: make
@@ -71,3 +83,4 @@ jobs:
         uses: softprops/action-gh-release@e598afbe1493e6b1bafb1f389cabb956eab91231 # v3.0.3
         with:
           files: net-listen-linux-x64.tar.gz
+          body_path: RELEASE_NOTES.md

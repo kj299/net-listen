@@ -129,6 +129,11 @@ git tag -a v0.1.3 -m "net-listen v0.1.3"
 git push origin v0.1.3
 ```
 
+Promote the `[Unreleased]` section of [CHANGELOG.md](CHANGELOG.md) to the new
+version number *before* pushing the tag: the workflow reads that section
+(via `tools/release-notes.sh`) to fill in the GitHub Release body, and fails
+immediately if the tag has no section of its own.
+
 The tag must start with `v` (`vMAJOR.MINOR.PATCH`); the workflow triggers on
 `v*` only, so a tag like `0.2` builds and publishes nothing. A failing smoke
 test blocks packaging, so a release cannot ship untested binaries.

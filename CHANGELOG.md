@@ -9,6 +9,20 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
 `Release` workflow only triggers on tags matching `v*`, so a tag without the
 `v` prefix builds nothing and publishes nothing.
 
+## [Unreleased]
+
+### Added
+
+- **Release notes are generated from this file.** The release workflow runs
+  `tools/release-notes.sh` against the tag being built and passes the matching
+  section to the GitHub Release as its body, so the release page no longer has
+  to be filled in by hand — v0.2.0 shipped with an empty one.
+
+  The step runs before the build, and a tag with no section of its own fails
+  the release rather than publishing empty notes. Promoting `[Unreleased]` is
+  now part of tagging, in the same way a failing smoke test already blocks
+  packaging.
+
 ## [v0.2.0] — 2026-09-20
 
 ### Added
