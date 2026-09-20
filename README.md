@@ -140,3 +140,9 @@ test blocks packaging, so a release cannot ship untested binaries.
 
 This produces `net-listen-windows-x64.zip` (`c_listener.exe` +
 `asm_listener.exe`) and `net-listen-linux-x64.tar.gz` (`c_listener`).
+
+To fix the notes on a release that is already out — one published before the
+notes were generated, or whose changelog section was corrected afterwards —
+run the `Backfill release notes` workflow from the Actions tab and give it the
+tag. It rewrites the body from the current `CHANGELOG.md` and leaves the
+attached files alone.

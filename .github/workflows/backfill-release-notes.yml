@@ -1,0 +1,43 @@
+name: Backfill release notes
+
+# Rewrites an existing GitHub Release's body from CHANGELOG.md on the branch
+# this is dispatched from (normally master). The Release workflow does this
+# automatically at tag time; this is for releases published before that
+# existed, or whose changelog section was edited afterwards.
+#
+# Run it from the Actions tab: pick this workflow, "Run workflow", enter the
+# tag. It only touches the release body — assets are left alone.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag of an existing release, e.g. v0.2.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Fails if the tag has no section of its own, same as at release time.
+      # The tag is passed through the environment rather than interpolated
+      # into the script, so its contents cannot be run as shell.
+      - name: Render notes from CHANGELOG.md
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          bash tools/release-notes.sh "$TAG"
+          echo "--- body to publish ---"
+          cat RELEASE_NOTES.md
+
+      - name: Update the release body
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: gh release edit "$TAG" --notes-file RELEASE_NOTES.md

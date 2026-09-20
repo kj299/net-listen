@@ -9,6 +9,17 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
 `Release` workflow only triggers on tags matching `v*`, so a tag without the
 `v` prefix builds nothing and publishes nothing.
 
+## [Unreleased]
+
+### Added
+
+- **`Backfill release notes` workflow.** Rewrites an existing release's body
+  from `CHANGELOG.md`, dispatched manually from the Actions tab with a tag.
+  Releases published before the notes were automated — v0.2.0 — have empty
+  bodies that nothing could fix without editing them by hand. It also covers
+  a changelog section corrected after its release went out. Assets are left
+  untouched.
+
 ## [v0.2.2] — 2026-09-20
 
 A repository-hygiene release. The listeners are unchanged from v0.2.0, so
