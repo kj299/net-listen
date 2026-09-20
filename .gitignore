@@ -4,6 +4,14 @@
 *.ilk
 *.log
 
+# Build outputs: the Makefile's targets on either platform, plus the
+# instrumented binary the sanitizer CI job builds. A c_listener.exe built
+# from superseded source was committed and shipped once already, and
+# nothing here stopped it.
+*.exe
+c_listener
+c_listener_asan
+
 # Generated from CHANGELOG.md by tools/release-notes.sh during a release.
 RELEASE_NOTES.md
 
