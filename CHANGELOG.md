@@ -9,7 +9,11 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
 `Release` workflow only triggers on tags matching `v*`, so a tag without the
 `v` prefix builds nothing and publishes nothing.
 
-## [Unreleased]
+## [v0.2.1] — 2026-09-20
+
+The listeners are unchanged from v0.2.0 — no source file moved, so the
+published binaries behave identically. This release covers the build and
+release pipeline only, and there is no reason to upgrade for its own sake.
 
 ### Added
 
@@ -176,7 +180,8 @@ scratch.
 - The committed `c_listener.exe`, which was built from superseded source. CI
   and the release workflow now publish fresh binaries.
 
-[Unreleased]: https://github.com/kj299/net-listen/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kj299/net-listen/compare/v0.2.1...HEAD
+[v0.2.1]: https://github.com/kj299/net-listen/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/kj299/net-listen/compare/v0.1.3...v0.2.0
 [v0.1.3]: https://github.com/kj299/net-listen/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/kj299/net-listen/compare/v0.1.1...v0.1.2
