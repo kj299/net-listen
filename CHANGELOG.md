@@ -9,16 +9,20 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
 `Release` workflow only triggers on tags matching `v*`, so a tag without the
 `v` prefix builds nothing and publishes nothing.
 
-## [Unreleased]
+## [v0.2.3] — 2026-09-20
+
+The listeners are unchanged since v0.2.0, so the published binaries behave
+identically to v0.2.0, v0.2.1 and v0.2.2. Release tooling only.
 
 ### Added
 
 - **`Backfill release notes` workflow.** Rewrites an existing release's body
   from `CHANGELOG.md`, dispatched manually from the Actions tab with a tag.
-  Releases published before the notes were automated — v0.2.0 — have empty
-  bodies that nothing could fix without editing them by hand. It also covers
-  a changelog section corrected after its release went out. Assets are left
-  untouched.
+  v0.2.0 was published before the notes were generated and its page was empty,
+  with nothing in the repo able to fix it — the `Release` workflow runs only on
+  a tag push, and re-tagging a shipped release is not an option. v0.2.0 has now
+  been backfilled with it. It also covers a changelog section corrected after
+  its release went out. Assets are left untouched.
 
 ## [v0.2.2] — 2026-09-20
 
@@ -206,7 +210,8 @@ scratch.
 - The committed `c_listener.exe`, which was built from superseded source. CI
   and the release workflow now publish fresh binaries.
 
-[Unreleased]: https://github.com/kj299/net-listen/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/kj299/net-listen/compare/v0.2.3...HEAD
+[v0.2.3]: https://github.com/kj299/net-listen/compare/v0.2.2...v0.2.3
 [v0.2.2]: https://github.com/kj299/net-listen/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/kj299/net-listen/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/kj299/net-listen/compare/v0.1.3...v0.2.0
