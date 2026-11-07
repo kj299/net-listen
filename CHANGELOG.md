@@ -9,6 +9,26 @@ Release tags are named `vMAJOR.MINOR.PATCH` (for example `v0.1.2`). The
 `Release` workflow only triggers on tags matching `v*`, so a tag without the
 `v` prefix builds nothing and publishes nothing.
 
+## [Unreleased]
+
+### Changed
+
+- `actions/upload-artifact` repinned from v7.0.1 to v7.0.2 (three call sites in
+  the CI workflow). The other three pinned actions were verified still current,
+  and all four still resolve to the SHAs they are pinned at — no tag has been
+  repointed since v0.1.3 pinned them.
+
+### Fixed
+
+- **README told Windows users to run `make clean`.** MinGW-w64 ships only
+  `mingw32-make`, which the surrounding lines already use, so the one `make`
+  invocation in that section would have failed with `CreateProcess ... failed` —
+  the same class of mistake v0.1.0 fixed in the Makefile itself. It also claimed
+  `clean` removes "all generated files"; it removes the binaries and the NASM
+  object file, and leaves `smoketest.log` alone.
+- The `git tag` example in the README and in the release workflow's header
+  comment still read `v0.1.3`, four releases behind.
+
 ## [v0.2.3] — 2026-09-20
 
 The listeners are unchanged since v0.2.0, so the published binaries behave

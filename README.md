@@ -54,7 +54,9 @@ build.bat               # equivalent, no make required
 ```
 
 `mingw32-make c` / `mingw32-make asm` build a single target.
-`make clean` / `build.bat clean` remove all generated files.
+`mingw32-make clean` / `build.bat clean` remove the built binaries and the
+NASM object file. (`smoketest.log` is a transcript, not a build output, and is
+left in place; it is gitignored.)
 If NASM is not on `PATH`, the Makefile builds only `c_listener.exe`.
 
 The C source also compiles with MSVC: `cl c_listener.c ws2_32.lib`.
@@ -125,8 +127,8 @@ To cut a new release, push a version tag — the `Release` workflow builds and
 smoke-tests on both platforms, then attaches the artifacts:
 
 ```
-git tag -a v0.1.3 -m "net-listen v0.1.3"
-git push origin v0.1.3
+git tag -a v0.2.4 -m "net-listen v0.2.4"
+git push origin v0.2.4
 ```
 
 Promote the `[Unreleased]` section of [CHANGELOG.md](CHANGELOG.md) to the new

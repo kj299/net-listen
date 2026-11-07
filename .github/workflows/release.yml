@@ -1,7 +1,7 @@
 name: Release
 
 # Cut a release by pushing a version tag, e.g.:
-#   git tag -a v0.1.3 -m "net-listen v0.1.3" && git push origin v0.1.3
+#   git tag -a v0.2.4 -m "net-listen v0.2.4" && git push origin v0.2.4
 # This builds the binaries on Windows and Linux, smoke-tests them, and
 # publishes them on a GitHub Release for that tag.
 #
